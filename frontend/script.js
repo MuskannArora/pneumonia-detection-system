@@ -69,6 +69,20 @@ const el = {
   heatmapImg: $('heatmapImg'),
   overlayBox: $('overlayBox'),
   overlayImg: $('overlayImg'),
+  clinical: $('clinical'),
+  clinicalUrgency: $('clinicalUrgency'),
+  clinicalUrgencyText: $('clinicalUrgencyText'),
+  clinicalSetting: $('clinicalSetting'),
+  clinicalSummary: $('clinicalSummary'),
+  clinicalNotes: $('clinicalNotes'),
+  clinicalNextSteps: $('clinicalNextSteps'),
+  clinicalTests: $('clinicalTests'),
+  clinicalTreatment: $('clinicalTreatment'),
+  clinicalMonitoring: $('clinicalMonitoring'),
+  clinicalFollowUp: $('clinicalFollowUp'),
+  clinicalRecovery: $('clinicalRecovery'),
+  clinicalRedFlags: $('clinicalRedFlags'),
+  reportBtn: $('reportBtn'),
   botLauncher: $('botLauncher'),
   botBadge: $('botBadge'),
   botPanel: $('botPanel'),
@@ -87,6 +101,7 @@ const state = {
   severity: 'Normal',
   chatBusy: false,
   xrayIssue: null,
+  lastResult: null,  // { data, fileName, analyzedAt } for the downloadable report
   viewer: null   // { base, heat, box, isPneumonia } for the overlay viewer
 };
 
@@ -392,7 +407,127 @@ async function renderResult(data) {
   setImage(el.overlayBox, el.overlayImg, overlayB64, note);
 
   await buildViewer(originalSrc, heatmapB64 ? toDataUrl(heatmapB64) : null, isPneumonia, note);
+
+  renderClinical(data.clinical_assistance);
+  state.lastResult = { data, fileName: state.file ? state.file.name : '', analyzedAt: new Date(), xrayIssue: state.xrayIssue };
 }
+
+/* ---------------- Clinical assistance ---------------- */
+
+function fillList(list, items) {
+  list.replaceChildren(...(Array.isArray(items) ? items : []).map((text) => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    return li;
+  }));
+}
+
+function clinicalNotes(ca, xrayIssue) {
+  const notes = Array.isArray(ca.notes) ? [...ca.notes] : [];
+  if (xrayIssue) notes.unshift('This image may not be a chest X-ray, so this guidance does not apply. Upload a frontal chest X-ray.');
+  return notes;
+}
+
+function renderClinical(ca) {
+  el.clinical.classList.toggle('hidden', !ca);
+  if (!ca) return;
+  el.clinicalUrgency.dataset.level = ca.urgency_level || 'routine';
+  el.clinicalUrgencyText.textContent = ca.urgency;
+  el.clinicalSetting.textContent = ca.care_setting;
+  el.clinicalSummary.textContent = ca.summary;
+  const notes = clinicalNotes(ca, state.xrayIssue);
+  fillList(el.clinicalNotes, notes);
+  // Everything except the standing "doctor must prescribe" reminder is result-specific, so highlight it
+  [...el.clinicalNotes.children].forEach((li, i) => li.classList.toggle('is-warning', i < notes.length - 1));
+  fillList(el.clinicalNextSteps, ca.next_steps);
+  fillList(el.clinicalTests, ca.tests);
+  fillList(el.clinicalTreatment, ca.treatment);
+  fillList(el.clinicalMonitoring, ca.monitoring);
+  el.clinicalFollowUp.textContent = ca.follow_up;
+  el.clinicalRecovery.textContent = ca.recovery;
+  fillList(el.clinicalRedFlags, ca.red_flags);
+}
+
+/* ---------------- Downloadable report ---------------- */
+
+function escapeHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function reportList(title, items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  return `<h3>${escapeHtml(title)}</h3><ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+}
+
+function buildReportHtml({ data, fileName, analyzedAt, xrayIssue }) {
+  const ca = data.clinical_assistance || {};
+  const prob = readProbability(data);
+  const isPneumonia = data.prediction === 'Pneumonia';
+  const probText = prob === null ? '—' : pct(prob * 100);
+  const confText = prob === null ? '—' : pct((isPneumonia ? prob : 1 - prob) * 100);
+  const threshold = typeof data.threshold === 'number' ? data.threshold : DEFAULT_THRESHOLD;
+  const img = (b64, caption) => b64 ? `<figure><img src="${toDataUrl(b64)}" alt="${escapeHtml(caption)}"><figcaption>${escapeHtml(caption)}</figcaption></figure>` : '';
+  const levelColor = { routine: '#1f7a4c', mild: '#b7791f', moderate: '#c2571a', severe: '#b83a2a' }[ca.urgency_level] || '#142a35';
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>PneumoAI report – ${escapeHtml(fileName || 'chest X-ray')}</title>
+<style>
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #142a35; margin: 32px; font-size: 13px; line-height: 1.5; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #177f79; padding-bottom: 10px; }
+  h1 { font-size: 22px; margin: 0; color: #177f79; } h2 { font-size: 15px; margin: 22px 0 8px; } h3 { font-size: 13px; margin: 14px 0 4px; }
+  .meta { font-size: 11.5px; color: #6b7e86; text-align: right; }
+  table { border-collapse: collapse; width: 100%; } td { border: 1px solid #e2eae8; padding: 7px 10px; } td:first-child { width: 40%; color: #6b7e86; }
+  .urgency { margin-top: 10px; padding: 10px 14px; border: 2px solid ${levelColor}; color: ${levelColor}; border-radius: 8px; font-weight: 700; font-size: 15px; }
+  .urgency small { display: block; color: #142a35; font-weight: 400; font-size: 12.5px; }
+  .note { background: #fdf5e6; border: 1px solid #f2dcae; padding: 7px 10px; border-radius: 6px; margin: 6px 0; }
+  .flags { background: #fbe9e5; border: 1px solid #f1c9bf; color: #a8402c; padding: 4px 14px 10px; border-radius: 8px; margin-top: 14px; }
+  ul { margin: 0; padding-left: 18px; } .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .images { display: flex; gap: 14px; } figure { margin: 0; flex: 1; } figure img { width: 100%; max-height: 260px; object-fit: contain; background: #0d1f27; border-radius: 6px; }
+  figcaption { text-align: center; font-size: 11px; color: #6b7e86; margin-top: 4px; }
+  footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e2eae8; font-size: 11px; color: #6b7e86; }
+  @media print { body { margin: 14mm; } h2 { break-after: avoid; } .flags, figure, table { break-inside: avoid; } }
+</style></head><body>
+<header><div><h1>PneumoAI — Chest X-ray Analysis Report</h1><div>AI-assisted pneumonia screening with clinical decision support</div></div>
+<div class="meta">Date: ${escapeHtml(analyzedAt.toLocaleString())}<br>Image: ${escapeHtml(fileName || '—')}</div></header>
+
+<h2>1. Analysis result</h2>
+<table>
+  <tr><td>Predicted class</td><td><strong>${escapeHtml(data.prediction)}</strong></td></tr>
+  <tr><td>Pneumonia probability</td><td>${probText} (decision threshold ${(threshold * 100).toFixed(0)}%)</td></tr>
+  <tr><td>Prediction confidence</td><td>${confText}</td></tr>
+  <tr><td>Severity estimate</td><td><strong>${escapeHtml(data.severity || '—')}</strong> (score-based, experimental)</td></tr>
+</table>
+
+<h2>2. Images</h2>
+<div class="images">${img(data.original_image, 'Original X-ray')}${img(data.overlay_image, 'Grad-CAM attention overlay')}</div>
+
+<h2>3. Clinical assistance</h2>
+<div class="urgency">${escapeHtml(ca.urgency || '')}<small>${escapeHtml(ca.care_setting || '')}</small></div>
+<p>${escapeHtml(ca.summary || '')}</p>
+${clinicalNotes(ca, xrayIssue).map((n) => `<div class="note">${escapeHtml(n)}</div>`).join('')}
+<div class="cols"><div>${reportList('Recommended next steps', ca.next_steps)}${reportList('Suggested investigations', ca.tests)}</div>
+<div>${reportList('Treatment & care', ca.treatment)}${reportList('Monitoring', ca.monitoring)}</div></div>
+<h3>Follow-up</h3><p>${escapeHtml(ca.follow_up || '')}</p>
+<h3>Expected recovery</h3><p>${escapeHtml(ca.recovery || '')}</p>
+<div class="flags">${reportList('Seek emergency care immediately if any of these occur', ca.red_flags)}</div>
+
+<footer>Generated by PneumoAI (EfficientNetB0 + CLAHE + Grad-CAM). For research and educational use only. This report is not a medical diagnosis;
+it must be reviewed by a qualified radiologist or physician. Medicines and doses must be prescribed by a doctor.</footer>
+<script>window.addEventListener('load', () => { window.focus(); window.print(); });<\/script>
+</body></html>`;
+}
+
+el.reportBtn.addEventListener('click', () => {
+  if (!state.lastResult) return;
+  const win = window.open('', '_blank');
+  if (!win) {
+    showError('Your browser blocked the report window. Allow pop-ups for this site and try again.');
+    return;
+  }
+  win.document.open();
+  win.document.write(buildReportHtml(state.lastResult));
+  // The report opens the print dialog ("Save as PDF") itself once its images have loaded
+  win.document.close();
+});
 
 /* ---------------- Overlay viewer (original X-ray + Grad-CAM) ---------------- */
 

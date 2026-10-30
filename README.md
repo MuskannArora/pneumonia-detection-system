@@ -108,13 +108,16 @@ The frontend then:
                                               8. generate_gradcam() from layer "top_conv"
                                               9. Encode original, CLAHE, heatmap, overlay
                                                  as base64 PNG + recommendations
- 10. Render results     ◀──── JSON ───────────
+                                             10. get_clinical_assistance() → urgency, care
+                                                 setting, tests, monitoring, red flags
+ 11. Render results     ◀──── JSON ───────────
     · Pneumonia / Normal banner
     · confidence, probability bar with 0.55 marker
     · severity chip + method + caveat
     · Grad-CAM viewer on the original X-ray, region boxes
     · 4 thumbnails: Original · CLAHE · Heatmap · Overlay
- 11. PneumoBot posts the result; follow-up questions ── POST /chat ─▶ bot.py rules
+    · Clinical assistance card + "Download report (PDF)"
+ 12. PneumoBot posts the result; follow-up questions ── POST /chat ─▶ bot.py rules
 ```
 
 **Confidence vs probability.** The *pneumonia probability* is the raw model output *p*. *Prediction confidence* is the confidence in the shown verdict: *p* for Pneumonia, 1 − *p* for Normal. These are uncalibrated model scores, not guarantees.
@@ -175,6 +178,7 @@ Open **http://localhost:8000/app/**. The page is a single page with these sectio
 | **Analysis workspace** | **Left panel:** drag-and-drop or browse (PNG/JPG, max 12 MB), preview, file size, remove button, Analyze button (disabled until a valid image is chosen and during analysis, so it can't be double-submitted). **Right panel:** results (below). |
 | **Results** | Pneumonia/Normal banner (colour + icon + text), predicted class, prediction confidence, pneumonia probability with a bar and 0.55 threshold marker, the severity estimate with its method and caveat, the Grad-CAM viewer (heatmap toggle, region-box toggle, opacity slider), and 4 thumbnails: **Original X-ray · CLAHE enhanced · Grad-CAM heatmap · Attention overlay**. |
 | **"This may not be a chest X-ray" warning** | Appears when the upload is colourful, mostly white (screenshot/document), or has an unusual shape. The model will output *some* answer for any image, so this warns that the result is meaningless. |
+| **Clinical assistance** | Shown under every result. An urgency banner (*Routine* / *Consult a doctor within 24 hours* / *See a doctor today* / *Emergency*) with the suggested care setting, then: recommended next steps, suggested investigations (CBC, CRP, ABG, cultures, CURB-65…), treatment & care, monitoring targets (SpO2, temperature), follow-up, expected recovery, and emergency warning signs. Result-specific notes are added for borderline scores (within 5% of the 0.55 threshold), a not-very-low Normal score, or an image that may not be an X-ray. **Download report (PDF)** opens a printable report (result, original + Grad-CAM images, full clinical guidance) and the print dialog; choose *Save as PDF*. |
 | **From image to insight** | The 3-step pipeline (CLAHE → EfficientNetB0 → Grad-CAM), plus an expandable *Model details & reported evaluation* panel. |
 | **PneumoBot** | "Ask PneumoBot" button (bottom-right). It posts each new result with general guidance and answers questions on medications, hospital care, symptoms, recovery time and oxygen levels for the current severity. Off-topic questions are declined. |
 | **Footer** | Project title and "Back to top". |
@@ -208,6 +212,17 @@ Multipart form with field **`file`** (PNG or JPG, ≤ 15 MB on the server; the U
   "gradcam_image":  "<base64 PNG>",  // 224×224 grayscale heatmap
   "overlay_image":  "<base64 PNG>",  // 224×224 heatmap blended on the CLAHE input
   "recommendations": ["GO TO EMERGENCY ROOM IMMEDIATELY", "..."],
+  "clinical_assistance": {
+    "severity": "Severe Pneumonia",
+    "urgency": "Emergency — seek care immediately",
+    "urgency_level": "severe",          // routine | mild | moderate | severe
+    "care_setting": "Emergency department / hospital admission. ICU care may be required.",
+    "summary": "...",
+    "next_steps": ["..."], "tests": ["..."], "treatment": ["..."],
+    "monitoring": ["..."], "red_flags": ["..."],
+    "follow_up": "...", "recovery": "...",
+    "notes": ["Do not delay treatment while waiting for further tests.", "..."]  // result-specific
+  },
   "bot_message": "SEVERE pneumonia detected. Go to emergency immediately."
 }
 ```
@@ -244,7 +259,7 @@ pneumonia project/
 │   ├── model_utils.py           ← CLAHE preprocessing, Grad-CAM, severity mapping, base64 encoding
 │   ├── bot.py                   ← PneumoBot rules and severity guidance
 │   ├── requirements.txt         ← pinned Python dependencies
-│   └── .venv/                   ← Python virtual environment (created on first run)
+│   └── (venv)                   ← Python environment, created on first run at %LOCALAPPDATA%\PneumoAI\venv
 ├── frontend/
 │   ├── index.html               ← page structure (all sections)
 │   ├── style.css                ← teal / off-white medical theme, responsive rules
@@ -273,16 +288,16 @@ Use this if you prefer not to use `start.bat`.
 3. Create the environment and install dependencies (once):
    ```powershell
    cd backend
-   python -m venv .venv
-   .venv\Scripts\python.exe -m pip install --upgrade pip
-   .venv\Scripts\python.exe -m pip install -r requirements.txt
+   py -3.12 -m venv "$env:LOCALAPPDATA\PneumoAI\venv"
+   & "$env:LOCALAPPDATA\PneumoAI\venv\Scripts\python.exe" -m pip install --upgrade pip
+   & "$env:LOCALAPPDATA\PneumoAI\venv\Scripts\python.exe" -m pip install -r requirements.txt
    ```
 4. Start the server (every time):
    ```powershell
    cd backend
-   .venv\Scripts\python.exe -m uvicorn app:app --port 8000
+   & "$env:LOCALAPPDATA\PneumoAI\venv\Scripts\python.exe" -m uvicorn app:app --port 8000
    ```
-   Wait for `✅ Model loaded successfully`.
+   Wait for `[OK] Model loaded successfully`.
 5. Open **http://localhost:8000/app/** in a browser.
    - Opening `frontend/index.html` directly from disk also works; it calls the API at `http://localhost:8000`.
    - API docs are at http://localhost:8000/docs.
@@ -327,7 +342,7 @@ All tests below were run against the real model on this machine (Windows 11, Pyt
 | Header says **Server unavailable** | The backend is not running. Start `start.bat` (or the uvicorn command) and keep its window open. |
 | Header says **Model unavailable** | `pneumonia_final_v2.keras` is missing from the project folder or failed to load. Check the server window for the error message. |
 | `Python was not found` | Install Python 3.12 with "Add Python to PATH" ticked, then rerun `start.bat`. |
-| `pip install` fails | Check your internet connection. Delete `backend\.venv` and run `start.bat` again. |
+| `pip install` fails | Check your internet connection. Delete `%LOCALAPPDATA%\PneumoAI\venv` and run `start.bat` again. |
 | Port 8000 already in use | Another server is running. Close the other `start.bat` window, or run `netstat -ano | findstr :8000` and end that process. |
 | Red "NativeCommandError … oneDNN" text in PowerShell | Harmless. These are TensorFlow information messages printed on stderr. |
 | Page looks old after an update | Hard-refresh the browser with `Ctrl + F5`. |

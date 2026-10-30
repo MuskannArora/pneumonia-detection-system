@@ -298,6 +298,57 @@
               <p class="explain-note">Grad-CAM is computed from the EfficientNetB0 <code>top_conv</code> layer. Warmer colours mark regions that most increased the pneumonia score; it is not a clinical explanation and is separate from the model's built-in attention blocks.</p>
             </div>
 
+            <div class="clinical hidden" id="clinical">
+              <div class="explain-head">
+                <div>
+                  <h4>Clinical assistance</h4>
+                  <p>Suggested care pathway for this result</p>
+                </div>
+                <span class="tag">Decision support</span>
+              </div>
+
+              <div class="urgency" id="clinicalUrgency">
+                <span class="urgency-icon" aria-hidden="true"></span>
+                <div>
+                  <p class="urgency-label" id="clinicalUrgencyText"></p>
+                  <p class="urgency-sub" id="clinicalSetting"></p>
+                </div>
+              </div>
+              <p class="clinical-summary" id="clinicalSummary"></p>
+              <ul class="clinical-notes" id="clinicalNotes"></ul>
+
+              <div class="clinical-grid">
+                <div class="clinical-block">
+                  <h5>Recommended next steps</h5>
+                  <ul id="clinicalNextSteps"></ul>
+                </div>
+                <div class="clinical-block">
+                  <h5>Suggested investigations</h5>
+                  <ul id="clinicalTests"></ul>
+                </div>
+                <div class="clinical-block">
+                  <h5>Treatment &amp; care</h5>
+                  <ul id="clinicalTreatment"></ul>
+                </div>
+                <div class="clinical-block">
+                  <h5>Monitoring</h5>
+                  <ul id="clinicalMonitoring"></ul>
+                </div>
+              </div>
+
+              <div class="clinical-timeline">
+                <div><p class="score-label">Follow-up</p><p id="clinicalFollowUp"></p></div>
+                <div><p class="score-label">Expected recovery</p><p id="clinicalRecovery"></p></div>
+              </div>
+
+              <div class="red-flags">
+                <h5>Seek emergency care immediately if any of these occur</h5>
+                <ul id="clinicalRedFlags"></ul>
+              </div>
+
+              <button class="btn btn-primary btn-report" type="button" id="reportBtn">Download report (PDF)</button>
+            </div>
+
             <p class="result-disclaimer">For research and educational demonstration only. A model prediction is not a diagnosis. Please consult a qualified healthcare professional for medical concerns.</p>
           </div>
         </div>

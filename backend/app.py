@@ -6,7 +6,7 @@ from pydantic import BaseModel
 import tensorflow as tf
 import numpy as np
 from model_utils import preprocess_image, generate_gradcam, get_severity, is_decodable_image
-from bot import get_bot_response, SEVERITY_DATA
+from bot import get_bot_response, get_clinical_assistance, SEVERITY_DATA
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,10 +44,10 @@ async def load_model():
         model = tf.keras.models.load_model(MODEL_PATH, compile=False)
         # Warm-up pass so the first real request is not slowed by graph tracing
         model.predict(np.zeros((1, 224, 224, 3), dtype=np.float32), verbose=0)
-        print(f"✅ Model loaded successfully from {MODEL_PATH}")
+        print(f"[OK] Model loaded successfully from {MODEL_PATH}")
     except Exception as e:
         model_error = str(e)
-        print(f"❌ Model load failed: {e}")
+        print(f"[ERROR] Model load failed: {e}")
 
 
 @app.get("/health")
@@ -97,6 +97,7 @@ async def predict(file: UploadFile = File(...)):
             "gradcam_image": gradcam_base64,
             "overlay_image": overlay_base64,
             "recommendations": recommendations,
+            "clinical_assistance": get_clinical_assistance(prediction, prob, severity, THRESHOLD),
             "bot_message": SEVERITY_DATA[severity_key]["initial"]
         })
 
