@@ -1,0 +1,7 @@
+# Windows batch files must keep CRLF line endings
+*.bat text eol=crlf
+# Binary files
+*.keras binary
+*.docx binary
+*.png binary
+*.jpg binary

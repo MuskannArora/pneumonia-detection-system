@@ -1,0 +1,26 @@
+# Python environment and caches
+backend/.venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Secrets / local configuration
+.env
+.env.*
+*.pem
+*.key
+
+# Not needed in the repository
+pneumonia_final_model.keras
+frontend_dark_backup/
+
+# Editor / OS / Office temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+*.tmp
+*.log

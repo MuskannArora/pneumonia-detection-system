@@ -1,0 +1,10 @@
+# The model was saved with Keras 3.13.2, so TensorFlow 2.15 / Keras 2 cannot load it.
+# Use Python 3.10, 3.11 or 3.12.
+tensorflow==2.20.0
+keras==3.13.2
+fastapi==0.115.6
+uvicorn==0.34.0
+opencv-python==4.11.0.86
+numpy>=1.26,<2.2
+Pillow==11.1.0
+python-multipart==0.0.20

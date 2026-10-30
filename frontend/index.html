@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PneumoAI | Explainable Chest X-ray Analysis</title>
+  <meta name="description" content="Deep Learning-Based Pneumonia Detection and Severity Assessment from Chest X-Ray Images Using CLAHE-Enhanced EfficientNet and Explainable AI.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23177f79'/%3E%3Cpath d='M13 7h6v6h6v6h-6v6h-6v-6H7v-6h6z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body id="top">
+  <a class="skip-link" href="#analyze">Skip to analysis</a>
+
+  <!-- ============ 1. HEADER ============ -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="PneumoAI home">
+        <span class="brand-mark" aria-hidden="true">✚</span>
+        <span class="brand-text">
+          <strong>PneumoAI</strong>
+          <small>Explainable chest X-ray analysis</small>
+        </span>
+      </a>
+      <nav class="nav" aria-label="Main">
+        <a href="#how">How it works</a>
+        <a href="#analyze">Analyze X-ray</a>
+        <span class="status" id="modelStatus" data-state="checking" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-text">Checking model…</span>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ 2. HERO ============ -->
+    <section class="hero container">
+      <div class="hero-copy">
+        <p class="eyebrow eyebrow-dot">AI-powered radiology support</p>
+        <h1>Clarity in every<br><span>breath.</span></h1>
+        <p class="hero-lead">An explainable deep-learning prototype for chest X-ray analysis, combining CLAHE image enhancement, EfficientNet classification and Grad-CAM visualization.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#analyze">Start analysis <span aria-hidden="true">↗</span></a>
+          <a class="btn-link" href="#how">Explore the workflow <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="privacy-note">
+          <span class="check-ring" aria-hidden="true">✓</span>
+          Image processing runs locally on this app server. Use de-identified images.
+        </p>
+      </div>
+
+      <div class="hero-art" aria-hidden="true">
+        <div class="scan-card">
+          <div class="scan-top">
+            <span>Chest X-ray / AP</span>
+            <span class="scan-live">● Analysis view</span>
+          </div>
+          <svg class="scan-svg" viewBox="0 0 300 300" fill="none">
+            <defs>
+              <linearGradient id="lungFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#b9e6dd" stop-opacity=".55"/>
+                <stop offset="1" stop-color="#5fb7aa" stop-opacity=".15"/>
+              </linearGradient>
+              <radialGradient id="scanGlow" cx="50%" cy="45%" r="55%">
+                <stop offset="0" stop-color="#2f8f87" stop-opacity=".35"/>
+                <stop offset="1" stop-color="#102d38" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <rect x="8" y="8" width="284" height="284" rx="10" fill="url(#scanGlow)" stroke="#3d6f78" stroke-opacity=".5"/>
+            <!-- ribs -->
+            <g stroke="#9fd3cb" stroke-opacity=".22" stroke-width="2" stroke-linecap="round">
+              <path d="M146 92c-28 2-58 12-78 32"/><path d="M154 92c28 2 58 12 78 32"/>
+              <path d="M146 116c-30 3-60 15-82 38"/><path d="M154 116c30 3 60 15 82 38"/>
+              <path d="M146 140c-30 4-60 17-82 42"/><path d="M154 140c30 4 60 17 82 42"/>
+              <path d="M146 164c-28 5-56 18-76 42"/><path d="M154 164c28 5 56 18 76 42"/>
+            </g>
+            <!-- lungs -->
+            <path d="M136 96c-22 2-46 30-56 72-8 34-4 62 16 68 18 6 36-2 42-20 5-16 6-50 4-82-1-20-2-38-6-38z" fill="url(#lungFill)" stroke="#c7efe7" stroke-opacity=".75" stroke-width="2"/>
+            <path d="M164 96c22 2 46 30 56 72 8 34 4 62-16 68-18 6-36-2-42-20-5-16-6-50-4-82 1-20 2-38 6-38z" fill="url(#lungFill)" stroke="#c7efe7" stroke-opacity=".75" stroke-width="2"/>
+            <!-- trachea + bronchi -->
+            <g stroke="#e3f7f3" stroke-width="3" stroke-linecap="round" opacity=".9">
+              <path d="M150 52v58"/>
+              <path d="M150 108c-6 10-14 18-24 26"/><path d="M150 108c6 10 14 18 24 26"/>
+              <path d="M134 128c-4 12-10 22-18 32"/><path d="M166 128c4 12 10 22 18 32"/>
+            </g>
+            <g stroke="#e3f7f3" stroke-width="1.6" stroke-linecap="round" opacity=".55">
+              <path d="M126 134l-12 6"/><path d="M174 134l12 6"/><path d="M120 150l-10 14"/><path d="M180 150l10 14"/>
+            </g>
+            <!-- focus box -->
+            <path d="M188 168h-8v-8M222 160v8h-8M214 206h8v-8M180 198v8h8" stroke="#7fe0cf" stroke-width="2" stroke-linecap="round"/>
+            <!-- scan line -->
+            <rect class="scan-beam" x="20" y="40" width="260" height="2" fill="#7fe0cf" opacity=".5"/>
+          </svg>
+          <div class="scan-bottom">
+            <span>CLAHE contrast enhancement</span>
+            <span class="scan-pill">224 × 224 px</span>
+          </div>
+        </div>
+        <div class="chip chip-a">
+          <span class="chip-icon">◉</span>
+          <span><strong>Explainable AI</strong><small>Grad-CAM supported</small></span>
+        </div>
+        <div class="chip chip-b">
+          <span class="chip-icon">◈</span>
+          <span><strong>EfficientNetB0</strong><small>Binary classifier</small></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3. CAPABILITIES STRIP ============ -->
+    <section class="container" aria-label="Project capabilities">
+      <div class="strip">
+        <div class="strip-item"><span class="num-badge">01</span>Image enhancement</div>
+        <div class="strip-item"><span class="num-badge">02</span>Model inference</div>
+        <div class="strip-item"><span class="num-badge">03</span>Visual explanation</div>
+        <div class="strip-end">Built for project demonstration <span aria-hidden="true">↗</span></div>
+      </div>
+    </section>
+
+    <!-- ============ 4 & 5. ANALYSIS WORKSPACE + RESULTS ============ -->
+    <section class="workspace container" id="analyze">
+      <div class="section-head split">
+        <div>
+          <p class="eyebrow">The analysis workspace</p>
+          <h2>Analyze a chest X-ray</h2>
+          <p class="section-sub">Upload a clear frontal chest X-ray image to run the trained model.</p>
+        </div>
+        <p class="step-label"><strong>Step 01</strong> / Upload &amp; run</p>
+      </div>
+
+      <div class="workspace-grid">
+        <!-- Upload panel -->
+        <div class="panel upload-panel">
+          <div class="panel-head">
+            <span class="num-badge">01</span>
+            <div>
+              <h3>Upload image</h3>
+              <p>Choose an image from your device</p>
+            </div>
+          </div>
+
+          <input type="file" id="fileInput" class="visually-hidden" accept=".png,.jpg,.jpeg,image/png,image/jpeg" aria-label="Choose a chest X-ray image">
+
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-describedby="dzFormats" aria-label="Upload a chest X-ray image. Drop a file here or press Enter to browse.">
+            <span class="dz-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <p class="dz-title">Drop your X-ray here</p>
+            <p class="dz-or">or <span class="link-text">browse files</span></p>
+            <p class="dz-formats" id="dzFormats">PNG, JPG · Max 12 MB</p>
+          </div>
+
+          <div class="file-card hidden" id="fileCard">
+            <img id="previewImg" alt="">
+            <div class="file-info">
+              <p class="file-name" id="fileName"></p>
+              <p class="file-meta"><span id="fileSize"></span> · <span class="ready">Ready to analyze</span></p>
+            </div>
+            <button type="button" class="icon-btn" id="removeBtn" aria-label="Remove selected image">✕</button>
+          </div>
+
+          <p class="form-error hidden" id="uploadError" role="alert"></p>
+          <p class="form-warning hidden" id="uploadWarning" role="status"></p>
+
+          <button type="button" class="btn btn-primary btn-block" id="analyzeBtn" disabled>
+            <span class="btn-text">Analyze X-ray</span> <span class="btn-arrow" aria-hidden="true">↗</span>
+          </button>
+
+          <p class="fine-print"><span class="info-dot" aria-hidden="true">ⓘ</span> Demo tool only. It does not replace a radiologist or medical diagnosis.</p>
+        </div>
+
+        <!-- Results panel -->
+        <div class="panel results-panel" id="resultsPanel" aria-live="polite">
+          <div class="panel-head">
+            <span class="num-badge">02</span>
+            <div>
+              <h3>Analysis results</h3>
+              <p>Your model output will appear here</p>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="empty-state" id="emptyState">
+            <div class="empty-art" aria-hidden="true">
+              <span class="empty-line l1"></span><span class="empty-line l2"></span><span class="empty-line l3"></span>
+              <span class="empty-core">✧</span>
+            </div>
+            <h4>Ready when you are</h4>
+            <p>Upload a chest X-ray and select <strong>Analyze X-ray</strong> to view the prediction and explainability outputs.</p>
+            <ul class="checklist">
+              <li>✓ Binary prediction</li>
+              <li>✓ Confidence score</li>
+              <li>✓ Grad-CAM visualization*</li>
+            </ul>
+            <p class="footnote">*When supported by the saved model.</p>
+          </div>
+
+          <!-- Loading state -->
+          <div class="loading-state hidden" id="loadingState">
+            <span class="loader" aria-hidden="true"></span>
+            <h4>Analyzing image…</h4>
+            <p>Applying CLAHE, running the model and computing Grad-CAM.</p>
+          </div>
+
+          <!-- Result -->
+          <div class="result hidden" id="result">
+            <div class="xray-warning hidden" id="xrayWarning" role="alert">
+              <strong>This image may not be a chest X-ray.</strong>
+              <span id="xrayWarningText"></span> The model was trained only on frontal chest X-rays, so this result is not meaningful.
+            </div>
+            <p class="kicker">Model prediction</p>
+            <div class="result-banner" id="resultBanner">
+              <span class="banner-icon" id="bannerIcon" aria-hidden="true"></span>
+              <div>
+                <p class="banner-label" id="bannerLabel"></p>
+                <p class="banner-sub" id="bannerSub"></p>
+              </div>
+            </div>
+
+            <div class="score-grid">
+              <div class="score">
+                <p class="score-label">Predicted class</p>
+                <p class="score-value" id="predClass"></p>
+              </div>
+              <div class="score">
+                <p class="score-label">Prediction confidence</p>
+                <p class="score-value" id="predConfidence"></p>
+              </div>
+              <div class="score">
+                <p class="score-label">Pneumonia probability</p>
+                <p class="score-value" id="pneumoProb"></p>
+              </div>
+            </div>
+
+            <div class="prob-bar-wrap">
+              <div class="prob-bar" role="img" id="probBarLabel">
+                <span class="prob-fill" id="probFill"></span>
+                <span class="prob-threshold" style="left:55%"><span>Threshold 0.55</span></span>
+              </div>
+              <div class="prob-scale" aria-hidden="true"><span>0%</span><span>100%</span></div>
+            </div>
+
+            <div class="severity">
+              <div class="severity-top">
+                <p class="kicker">Experimental score-based estimate</p>
+                <span class="sev-chip" id="sevChip"></span>
+              </div>
+              <p class="sev-method">Severity is mapped from the pneumonia probability: below 0.55 Normal · 0.55–0.70 Mild · 0.70–0.85 Moderate · 0.85 and above Severe.</p>
+              <p class="sev-caveat">This is a heuristic based on the notebook's probability thresholds, not a clinically validated severity prediction.</p>
+            </div>
+
+            <div class="explain">
+              <div class="explain-head">
+                <div>
+                  <h4>Visual explanation</h4>
+                  <p>Preprocessing and model attention view</p>
+                </div>
+                <span class="tag">Grad-CAM</span>
+              </div>
+              <div class="viewer">
+                <div class="viewer-stage" id="viewerStage">
+                  <canvas id="viewerCanvas" aria-label="Original chest X-ray with Grad-CAM heatmap overlay"></canvas>
+                  <span class="viewer-unavailable hidden" id="viewerUnavailable">Grad-CAM is unavailable for this model.</span>
+                </div>
+                <div class="viewer-controls">
+                  <p class="viewer-title" id="viewerTitle">Original X-ray with Grad-CAM overlay</p>
+                  <label class="toggle"><input type="checkbox" id="toggleHeat" checked> Heatmap</label>
+                  <label class="toggle"><input type="checkbox" id="toggleBox" checked> Region box</label>
+                  <label class="slider">Opacity
+                    <input type="range" id="opacityRange" min="0" max="90" value="45" aria-label="Heatmap opacity">
+                  </label>
+                </div>
+                <p class="viewer-legend"><span class="jet-bar" aria-hidden="true"></span><span>Low</span><span>High model attention</span></p>
+                <p class="viewer-note" id="viewerNote"></p>
+              </div>
+
+              <div class="explain-grid">
+                <figure>
+                  <div class="img-box" id="originalBox"><img id="originalImg" alt="Original uploaded chest X-ray"></div>
+                  <figcaption>Original X-ray</figcaption>
+                </figure>
+                <figure>
+                  <div class="img-box" id="claheBox"><img id="claheImg" alt="CLAHE contrast-enhanced version of the uploaded chest X-ray"></div>
+                  <figcaption>CLAHE enhanced</figcaption>
+                </figure>
+                <figure>
+                  <div class="img-box" id="heatmapBox"><img id="heatmapImg" alt="Grad-CAM heatmap of regions influencing the model score"></div>
+                  <figcaption>Grad-CAM heatmap</figcaption>
+                </figure>
+                <figure>
+                  <div class="img-box" id="overlayBox"><img id="overlayImg" alt="Grad-CAM heatmap overlaid on the preprocessed X-ray"></div>
+                  <figcaption>Attention overlay</figcaption>
+                </figure>
+              </div>
+              <p class="explain-note">Grad-CAM is computed from the EfficientNetB0 <code>top_conv</code> layer. Warmer colours mark regions that most increased the pneumonia score; it is not a clinical explanation and is separate from the model's built-in attention blocks.</p>
+            </div>
+
+            <p class="result-disclaimer">For research and educational demonstration only. A model prediction is not a diagnosis. Please consult a qualified healthcare professional for medical concerns.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6. RESEARCH WORKFLOW ============ -->
+    <section class="workflow container" id="how">
+      <div class="section-head">
+        <p class="eyebrow">Under the hood</p>
+        <h2>From image to insight</h2>
+        <p class="section-sub">A simple view of the inference pipeline used in this prototype.</p>
+      </div>
+      <div class="flow-grid">
+        <article class="flow-card">
+          <p class="flow-num">01 / Preprocess</p>
+          <span class="flow-icon" aria-hidden="true">▧</span>
+          <h3>CLAHE enhancement</h3>
+          <p>The image is converted to grayscale, contrast-enhanced and resized to 224 × 224 pixels.</p>
+        </article>
+        <article class="flow-card">
+          <p class="flow-num">02 / Classify</p>
+          <span class="flow-icon" aria-hidden="true">⌘</span>
+          <h3>EfficientNetB0</h3>
+          <p>The saved Keras model returns a sigmoid score for the Normal/Pneumonia classification.</p>
+        </article>
+        <article class="flow-card">
+          <p class="flow-num">03 / Explain</p>
+          <span class="flow-icon" aria-hidden="true">◉</span>
+          <h3>Grad-CAM map</h3>
+          <p>A heatmap can help visualize image regions influencing the model score; it is not a clinical explanation.</p>
+        </article>
+      </div>
+
+      <details class="model-details">
+        <summary>Model details &amp; reported evaluation</summary>
+        <div class="details-grid">
+          <div>
+            <h4>Architecture (read from the saved model)</h4>
+            <ul>
+              <li>Input 224 × 224 × 3, pixel range 0–255 (rescaling is built into EfficientNetB0)</li>
+              <li>EfficientNetB0 backbone, ImageNet initialised</li>
+              <li>Channel attention: average- and max-pooled descriptors through a shared MLP, sigmoid gating</li>
+              <li>Spatial attention: channel-wise mean and max, 7 × 7 convolution, sigmoid gating</li>
+              <li>Head: GAP → BatchNorm → Dense 256 → Dropout 0.4 → Dense 64 → Dropout 0.3 → Dense 1 (sigmoid)</li>
+              <li>Decision rule: pneumonia probability ≥ 0.55 → Pneumonia</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Reported results (project notebook)</h4>
+            <p class="details-context">RSNA Pneumonia Detection Challenge, held-out stratified test split of 2,230 images, threshold 0.55.</p>
+            <dl class="metric-list">
+              <div><dt>Accuracy</dt><dd>93.59%</dd></div>
+              <div><dt>Sensitivity</dt><dd>90.24%</dd></div>
+              <div><dt>Specificity</dt><dd>95.86%</dd></div>
+              <div><dt>ROC-AUC</dt><dd>0.9756</dd></div>
+            </dl>
+            <p class="details-context">Not clinically validated. Probabilities are uncalibrated model scores.</p>
+          </div>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <!-- ============ 7. FOOTER ============ -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">✚</span>
+        <span class="brand-text">
+          <strong>PneumoAI</strong>
+          <small>Final year project prototype</small>
+        </span>
+      </div>
+      <p class="footer-desc">Deep Learning-Based Pneumonia Detection and Severity Assessment from Chest X-Ray Images Using CLAHE-Enhanced EfficientNet and Explainable AI</p>
+      <a class="back-top" href="#top">Back to top <span aria-hidden="true">↑</span></a>
+    </div>
+  </footer>
+
+  <!-- PneumoBot (rule-based assistant backed by POST /chat) -->
+  <button type="button" class="bot-launcher" id="botLauncher" aria-expanded="false" aria-controls="botPanel">
+    <span class="bot-launcher-icon" aria-hidden="true">✚</span> Ask PneumoBot
+    <span class="bot-badge hidden" id="botBadge" aria-label="New message"></span>
+  </button>
+  <section class="bot-panel hidden" id="botPanel" aria-label="PneumoBot assistant">
+    <header class="bot-head">
+      <span class="brand-mark small" aria-hidden="true">✚</span>
+      <div>
+        <h3>PneumoBot</h3>
+        <p><span class="online-dot" aria-hidden="true"></span> Rule-based pneumonia assistant</p>
+      </div>
+      <button type="button" class="icon-btn" id="botClose" aria-label="Close PneumoBot">✕</button>
+    </header>
+    <div class="bot-messages" id="botMessages" aria-live="polite"></div>
+    <div class="bot-chips" id="botChips">
+      <button type="button" data-q="What medicines are usually prescribed?">Medications</button>
+      <button type="button" data-q="Do I need to go to the hospital?">Hospital?</button>
+      <button type="button" data-q="How long does recovery take?">Recovery</button>
+      <button type="button" data-q="What are the symptoms of pneumonia?">Symptoms</button>
+      <button type="button" data-q="What should my oxygen level be?">Oxygen</button>
+    </div>
+    <form class="bot-form" id="botForm" autocomplete="off">
+      <input type="text" id="botInput" maxlength="500" placeholder="Ask about pneumonia…" aria-label="Message PneumoBot">
+      <button type="submit" class="btn btn-primary" id="botSend" aria-label="Send message">↗</button>
+    </form>
+    <p class="bot-note">General guidance only. Medication decisions must come from a doctor.</p>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
